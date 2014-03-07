@@ -1,0 +1,17 @@
+!SESSION 2014-03-03 11:30:42.460 -----------------------------------------------
+eclipse.buildId=4.3.0.11fc20
+java.version=1.7.0_51
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=en_US
+Command-line arguments:  -data /cs/student/romankazarin/public_html/secretfolder/cs174aProject -os linux -ws gtk -arch x86_64
+
+!ENTRY org.eclipse.osgi 2 1 2014-03-03 11:30:53.361
+!MESSAGE NLS missing message: MergeWizardBestPracticesPage_invalidRevision in: com.collabnet.subversion.merge.messages
+
+!ENTRY org.eclipse.ui.ide 4 4 2014-03-03 11:34:34.100
+!MESSAGE Problems saving workspace
+
+!ENTRY org.eclipse.ui.ide 2 1 2014-03-03 11:34:34.108
+!MESSAGE Problems occurred while trying to save the state of the workbench.
+!SUBENTRY 1 org.eclipse.core.resources 2 234 2014-03-03 11:34:34.108
+!MESSAGE The project description file (.project) for 'RemoteSystemsTempFiles' was missing.  This file contains important information about the project.  A new project description file has been created, but some information about the project may have been lost.
