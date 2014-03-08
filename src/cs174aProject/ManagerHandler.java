@@ -1,13 +1,13 @@
 package cs174aProject;
 import java.sql.*;
+import java.util.Scanner;
 
 
 public class ManagerHandler extends UserHandler {
 
 	
-	public ManagerHandler(){
-		super(true, false);
-	}
+	public ManagerHandler(String dbDescription, String dbUser, String dbPassword){
+		super(true, false, dbDescription, dbUser, dbPassword);	}
 	
 	public int changeItemPrice(int stock_id, float new_price)
 	{
@@ -21,8 +21,14 @@ public class ManagerHandler extends UserHandler {
 		
 	}
 	
-	public boolean checkManagerLogin(String username, String password) throws SQLException
+	public boolean checkManagerLogin()
 	{
+		Scanner scan = new Scanner(System.in);
+		System.out.print("Enter manager username: ");
+		String username = scan.nextLine();
+		System.out.print("Enter manager password: ");
+		String password = scan.nextLine();
+		
 		String correctPassword = "";
 		String isManager = "";
 		
@@ -56,7 +62,12 @@ public class ManagerHandler extends UserHandler {
 		{
 			return false;
 		}
-
-		
 	}
+	
+	
+	public boolean processInput()
+	{
+		return true;
+		
+	}	
 }

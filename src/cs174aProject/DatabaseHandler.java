@@ -21,7 +21,11 @@ public class DatabaseHandler{
 		conn_emart = eMart;
 		conn_edepot = eDepot;
 		initializeConnection();
-		//checkTables();
+		try {
+			checkTables();
+		} catch (CustomException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public ResultSet executeQuery(String query)
@@ -114,8 +118,22 @@ public class DatabaseHandler{
 					
 				}
 				
-				if( emartCounter != 7 || edepotCounter != 0)
-					throw new CustomException("Incorrect table count");
+				if(conn_emart == true)
+				{
+					if(emartCounter != 7)
+					{
+						throw new CustomException("Incorrect table count");
+					}
+				}
+				
+				if(conn_edepot == true)
+				{
+					if(edepotCounter != 0)
+					{
+						throw new CustomException("Incorrect table count");
+					}
+				}
+						
 			}
 			catch (SQLException e){
 				e.printStackTrace();
