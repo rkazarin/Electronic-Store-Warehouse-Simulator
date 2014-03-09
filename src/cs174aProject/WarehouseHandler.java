@@ -1,7 +1,10 @@
 package cs174aProject;
 
 import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.ArrayList;
 
 //TODO: Receive a shipping notice from a manufacturer
 //TODO: Receive a shipment
@@ -33,6 +36,14 @@ public class WarehouseHandler extends UserHandler {
 		else if(s.equals("fill order"))
 		{
 			fillOrder();
+			if(isReplenishmentNeeded())
+			{
+				sendReplenishmentOrder();
+			}
+		}
+		else if(s.equals("receive notice"))
+		{
+			receiveShippingNotice();
 		}
 		else if(s.equals("logout"))
 		{
@@ -129,11 +140,23 @@ public class WarehouseHandler extends UserHandler {
 			rs = stmt.executeQuery(myQuery.toString());
 			myQuery.setLength(0);
 
+			HashMap<String, Integer> stockNumbers = new HashMap<String, Integer>();
+			
 			while(rs.next())
 			{
-				//get current stock_num and quantity of this item
 				String stockNum = rs.getString("STOCK_NUM");
 				int quantityPurchased = rs.getInt("QUANTITY");
+				stockNumbers.put(stockNum, quantityPurchased);
+				
+			}
+			
+
+			for(Map.Entry<String, Integer> entry : stockNumbers.entrySet())
+			{
+				//get current stock_num and quantity of this item
+				String stockNum = entry.getKey();
+				System.out.println(stockNum);
+				int quantityPurchased = entry.getValue();
 				
 				//get quantity of this product in warehouse
 				myQuery.append("SELECT I.quantity");
@@ -189,7 +212,25 @@ public class WarehouseHandler extends UserHandler {
 		{
 			Statement stmt = myDB.db_conn.createStatement();
 			StringBuilder myQuery = new StringBuilder(150);
-			myQuery.append("SELECT O.order_id");
+			myQuery.append("SELECT I.manufacturer");
+			myQuery.append(" FROM EDEPOT_INVENTORY I");
+			myQuery.append(" WHERE I.quantity < I.min_stock_level");
+			myQuery.append(" GROUP BY(I.manufacturer)");
+			myQuery.append(" HAVING COUNT(*) >= 3");
+			
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			
+			if(!rs.next())
+			{
+				System.out.println("No replenishment order needed.");
+				return false;
+			}
+			else
+			{
+				System.out.println("Need to send replenishment order.");
+				return true;
+			}
+			
 		}
 		catch(SQLException e)
 		{
@@ -197,8 +238,105 @@ public class WarehouseHandler extends UserHandler {
 			return false;
 		}
 		
-		return true;
 	}
 	
+	public void sendReplenishmentOrder() {
+		
+		int replenishmentOrderId = getLastReplenishmentOrderId();
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT I.manufacturer");
+			myQuery.append(" FROM EDEPOT_INVENTORY I");
+			myQuery.append(" WHERE I.quantity < I.min_stock_level");
+			myQuery.append(" GROUP BY(I.manufacturer)");
+			myQuery.append(" HAVING COUNT(*) >= 3");
+						
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+			
+			while(rs.next())
+			{
+				String currentManufacturer = rs.getString("MANUFACTURER");
+				System.out.println(currentManufacturer);
+				
+				myQuery.append("SELECT I.model_num");
+				myQuery.append(" FROM EDEPOT_INVENTORY I");
+				myQuery.append(" WHERE I.manufacturer = " + "\'" + currentManufacturer + "\'");
+				myQuery.append(" AND I.quantity < I.max_stock_level");
+				
+				ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+				myQuery.setLength(0);
+				
+				ArrayList<String> modelNums = new ArrayList<String>();
+				while(rs2.next())
+				{
+					String currentModelNum = rs2.getString("MODEL_NUM");
+					modelNums.add(currentModelNum);
+				}
+				
+				for(int i = 0; i < modelNums.size(); i++)
+				{
+					String modelNum = modelNums.get(i);
+					
+					myQuery.append("INSERT INTO EDEPOT_REPLENISHMENT_ORDER");
+					myQuery.append(" (replenishment_order_id, manufacturer, model_num)");
+					myQuery.append(" VALUES");
+					myQuery.append(" (" + replenishmentOrderId + "," + "\'" + currentManufacturer + "\'" + "," + "\'" + modelNum + "\'" + ")");
+					
+					System.out.println(myQuery.toString());
+					
+					stmt.executeQuery(myQuery.toString());
+					myQuery.setLength(0);
+				}
+				
+				
+				
+			}
+			
+			System.out.println("Replenishment Order ID: " + replenishmentOrderId + " sent!");
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+	}
 	
+	int getLastReplenishmentOrderId()
+	{
+		int lastReplenishmentOrderId = 0;
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT MAX(O.REPLENISHMENT_ORDER_ID) AS OID");
+			myQuery.append(" FROM EDEPOT_REPLENISHMENT_ORDER O");
+			
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			
+			while(rs.next())
+			{
+				lastReplenishmentOrderId = rs.getInt("OID");
+			}
+			
+			rs.close();
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		//System.out.println(lastOrderId);
+		return lastReplenishmentOrderId;
+		
+	}
+	
+	public void receiveShippingNotice()
+	{
+		
+	}
 }
