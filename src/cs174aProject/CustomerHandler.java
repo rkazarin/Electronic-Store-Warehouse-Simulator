@@ -14,6 +14,7 @@ public class CustomerHandler extends UserHandler {
 	HashMap<String, Integer> shoppingCart = new HashMap<String, Integer>();
 	
 	boolean logged_in = false;
+	String customerID = "";
 	
 	public CustomerHandler(String dbDescription, String dbUser, String dbPassword){
 		super(true, false, dbDescription, dbUser, dbPassword);
@@ -53,6 +54,7 @@ public class CustomerHandler extends UserHandler {
 		{
 			System.out.println("You are now logged in as customer: " + username);
 			logged_in = true;
+			customerID = username;
 			return true;
 		}
 		
@@ -86,6 +88,10 @@ public class CustomerHandler extends UserHandler {
 			if(s.equals("view"))
 			{
 				viewItemsInShoppingCart();
+			}
+			if(s.equals("checkout"))
+			{
+				checkoutOrder();
 			}
 			if(s.equals("logout"))
 			{
@@ -143,7 +149,7 @@ public class CustomerHandler extends UserHandler {
 		try
 		{
 			Statement stmt = myDB.db_conn.createStatement();
-			StringBuilder myQuery = new StringBuilder(150);
+			StringBuilder myQuery = new StringBuilder(500);
 			myQuery.append("SELECT *");
 			myQuery.append(" FROM EMART_CATALOG C");
 			
@@ -216,12 +222,258 @@ public class CustomerHandler extends UserHandler {
 		}
 	}
 
-//	public void checkoutOrder()
-//	{
-//		
-//	}
+	public void checkoutOrder()
+	{
+		double subTotal = 0;
+		
+		for(Map.Entry<String, Integer> entry : shoppingCart.entrySet())
+		{
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("SELECT C.price");
+				myQuery.append(" FROM EMART_CATALOG C");
+				myQuery.append(" WHERE C.stock_num " + " = " + "\'" + entry.getKey() + "\'");
+				
+				//System.out.println(myQuery.toString());
+				ResultSet rs = stmt.executeQuery(myQuery.toString());
+				
+				while(rs.next())
+				{
+					double price = rs.getDouble("PRICE");
+					//System.out.println("Price: " + price);
+					int quantity = entry.getValue();
+					//System.out.println("Quantity: " + quantity);
+					subTotal += price * quantity;
+				}
+			
+			}catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+			
+		}
+		
+		//System.out.println("Current subtotal: " + subTotal);
 	
+		//Compute status discount
+		double discountPercentage = computeStatusDiscount();
+		//Apply discountPercentage on subTotal
+		double discount = subTotal * (discountPercentage/100);
+		//Compute shipping waive amount, and percentage
+		double shippingWaiveAmount = computeShippingWaiveAmount();
+		double shippingPercentage = computeShippingPercentage();
+		
+		//System.out.println(shippingPercentage);
+		
+		double shippingFee = 0;
+		if(subTotal <= shippingWaiveAmount)
+		{
+			shippingFee = subTotal*(shippingPercentage/100);
+		}
+		
+		int orderId = getLastOrderId()+1;
+		double total = subTotal - discount + shippingFee;
+		
+		//System.out.println(total);
+		insertOrder(orderId, total);
+		
+		
+		
+	}
 	
+	public double computeStatusDiscount()
+	{
+		
+		double discountPercentage = 0;
+		String status = "";
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT C.status");
+			myQuery.append(" FROM EMART_CUSTOMERS C");
+			myQuery.append(" WHERE C.Customer_ID " + " = " + "\'" + customerID + "\'");
+			
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			
+			while(rs.next())
+			{
+				status = rs.getString("STATUS");
+			}
+			
+			myQuery.setLength(0);
+			myQuery.append("SELECT C." + status + "_percent");
+			myQuery.append(" FROM EMART_CHECKOUT_INFO C");
+			
+			//System.out.println(myQuery.toString());
+			rs = stmt.executeQuery(myQuery.toString());
+			
+			while(rs.next())
+			{
+				discountPercentage = rs.getDouble(status + "_percent");
+			}			
+			
+		}
 	
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		return discountPercentage;
+		
+	}
+	
+	double computeShippingWaiveAmount()
+	{
+		double waiveAmount = 0;
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT C.shipping_waive_amount");
+			myQuery.append(" FROM EMART_CHECKOUT_INFO C");
+			
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			
+			while(rs.next())
+			{
+				waiveAmount = rs.getFloat("SHIPPING_WAIVE_AMOUNT");
+			}
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		return waiveAmount;
+	}
+	
+	double computeShippingPercentage()
+	{
+		double shippingPercentage = 0;
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT C.shipping_percent");
+			myQuery.append(" FROM EMART_CHECKOUT_INFO C");
+			
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			
+			while(rs.next())
+			{
+				shippingPercentage = rs.getFloat("SHIPPING_percent");
+			}
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		return shippingPercentage;
+	}
+	
+	int getLastOrderId()
+	{
+		int lastOrderId = 0;
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT O.ORDER_ID");
+			myQuery.append(" FROM EMART_ORDERS O");
+			
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			
+			while(rs.next())
+			{
+				lastOrderId++;
+			}
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		//System.out.println(lastOrderId);
+		return lastOrderId;
+		
+	}
+	
+	void insertOrder(int orderId, double orderTotal)
+	{
+		long unixTime = System.currentTimeMillis() / 1000L;
+		
+		//insert one row into EMART_ORDERS
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("INSERT INTO EMART_ORDERS");
+			myQuery.append(" (order_id, customer_id, order_time, order_total)");
+			myQuery.append(" VALUES");
+			myQuery.append(" (" + orderId + "," + "\'" + customerID + "\'" + "," + unixTime + "," + orderTotal + ")");
+			
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		//insert all items in shopping cart into EMART_ORDER_HAS_ITEM
+		for(Map.Entry<String, Integer> entry : shoppingCart.entrySet())
+		{
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("SELECT C.price");
+				myQuery.append(" FROM EMART_CATALOG C");
+				myQuery.append(" WHERE C.stock_num " + " = " + "\'" + entry.getKey() + "\'");
+				
+				//System.out.println(myQuery.toString());
+				ResultSet rs = stmt.executeQuery(myQuery.toString());
+				
+				while(rs.next())
+				{
+					double price = rs.getDouble("PRICE");
+					myQuery.setLength(0);
+					myQuery.append("INSERT INTO EMART_ORDER_HAS_ITEM");
+					myQuery.append(" (order_id, stock_num, price, quantity)");
+					myQuery.append(" VALUES");
+					myQuery.append(" (" + orderId + "," + "\'" + entry.getKey() + "\'" + "," + price + "," + entry.getValue() + ")");
+					
+					//System.out.println(myQuery.toString());
+					ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+				}
+		
+		
+			}
+			catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+	
+		}
+		
+		System.out.println("Your order has been processed. Your Order ID is: " + orderId);
+		
+		shoppingCart.clear();
+		
+	}
+		
 
 }
