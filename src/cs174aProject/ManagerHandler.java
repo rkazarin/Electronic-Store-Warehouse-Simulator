@@ -2,6 +2,15 @@ package cs174aProject;
 import java.sql.*;
 import java.util.Scanner;
 
+//TODO: Print monthly summary of sales: the amount (quantity, price) of sale per product, per category, and the
+//      customer who did the most purchase.
+
+//TODO: Customer status adjustment according to the sales in the month.
+//TODO: Send an order to a manufacturer (shipment will go to eDEPOT directly).
+//TODO: Change the price of an item
+//TODO: Delete all sales transactions that are no longer needed in computing customer status. All orders need to
+//      be stored unless they are explicitly deleted.
+
 
 public class ManagerHandler extends UserHandler {
 
@@ -47,6 +56,8 @@ public class ManagerHandler extends UserHandler {
 				System.out.println(correctPassword);
 				isManager = rs.getString("MANAGER");
 			}
+			
+			rs.close();
 		}
 		catch(SQLException e)
 		{

@@ -9,6 +9,7 @@ import java.util.Scanner;
 
 import javax.swing.text.html.HTMLDocument.Iterator;
 
+//TODO: Add Search by description attribute and search for accessory of item
 
 public class CustomerHandler extends UserHandler {
 	HashMap<String, Integer> shoppingCart = new HashMap<String, Integer>();
@@ -43,6 +44,8 @@ public class CustomerHandler extends UserHandler {
 			{
 				correctPassword  = rs.getString("PASSWORD");
 			}
+			
+			rs.close();
 		}
 		catch(SQLException e)
 		{
@@ -81,19 +84,19 @@ public class CustomerHandler extends UserHandler {
 			{
 				searchEmart();
 			}
-			if(s.equals("add"))
+			else if(s.equals("add"))
 			{
 				addItemsToCart();
 			}
-			if(s.equals("view"))
+			else if(s.equals("view"))
 			{
 				viewItemsInShoppingCart();
 			}
-			if(s.equals("checkout"))
+			else if(s.equals("checkout"))
 			{
 				checkoutOrder();
 			}
-			if(s.equals("logout"))
+			else if(s.equals("logout"))
 			{
 				return false;
 			}
@@ -194,6 +197,8 @@ public class CustomerHandler extends UserHandler {
 				System.out.println("");
 			}
 			
+			rs.close();
+			
 		}
 		catch(SQLException e)
 		{
@@ -247,6 +252,8 @@ public class CustomerHandler extends UserHandler {
 					//System.out.println("Quantity: " + quantity);
 					subTotal += price * quantity;
 				}
+				
+				rs.close();
 			
 			}catch(SQLException e)
 			{
@@ -315,7 +322,9 @@ public class CustomerHandler extends UserHandler {
 			while(rs.next())
 			{
 				discountPercentage = rs.getDouble(status + "_percent");
-			}			
+			}		
+			
+			rs.close();
 			
 		}
 	
@@ -346,6 +355,8 @@ public class CustomerHandler extends UserHandler {
 			{
 				waiveAmount = rs.getFloat("SHIPPING_WAIVE_AMOUNT");
 			}
+			
+			rs.close();
 		}
 		catch(SQLException e)
 		{
@@ -373,6 +384,8 @@ public class CustomerHandler extends UserHandler {
 			{
 				shippingPercentage = rs.getFloat("SHIPPING_percent");
 			}
+			
+			rs.close();
 		}
 		catch(SQLException e)
 		{
@@ -400,6 +413,8 @@ public class CustomerHandler extends UserHandler {
 			{
 				lastOrderId++;
 			}
+			
+			rs.close();
 		}
 		catch(SQLException e)
 		{
@@ -421,12 +436,13 @@ public class CustomerHandler extends UserHandler {
 			Statement stmt = myDB.db_conn.createStatement();
 			StringBuilder myQuery = new StringBuilder(150);
 			myQuery.append("INSERT INTO EMART_ORDERS");
-			myQuery.append(" (order_id, customer_id, order_time, order_total)");
+			myQuery.append(" (order_id, customer_id, order_time, order_total, processed)");
 			myQuery.append(" VALUES");
-			myQuery.append(" (" + orderId + "," + "\'" + customerID + "\'" + "," + unixTime + "," + orderTotal + ")");
+			myQuery.append(" (" + orderId + "," + "\'" + customerID + "\'" + "," + unixTime + "," + orderTotal + "," + "\'" + "FALSE" + "\'" + ")");
 			
-			//System.out.println(myQuery.toString());
+			System.out.println(myQuery.toString());
 			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			rs.close();
 		}
 		catch(SQLException e)
 		{
@@ -458,6 +474,7 @@ public class CustomerHandler extends UserHandler {
 					
 					//System.out.println(myQuery.toString());
 					ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+					rs2.close();
 				}
 		
 		

@@ -22,17 +22,22 @@ public class MainApp {
 			UserHandler myUser;
 			
 			//Ask user whether they are customer or manager
-			System.out.print("Enter 'c' for customer or 'm' for Manager: ");
+			System.out.print("Enter 'c' for customer, 'm' for Manager, or 'w' to access warehouse: ");
 			Scanner scan = new Scanner(System.in);
 			String s = scan.nextLine();
 			
 			if(s.equals("c"))
+			{
 				myUser = new CustomerHandler(strConn, strUsername, strPassword);
-				
-			
+			}
 			else if(s.equals("m"))
+			{
 				myUser = new ManagerHandler(strConn, strUsername, strPassword);
-			
+			}
+			else if(s.equals("w"))
+			{
+				myUser = new WarehouseHandler(strConn, strUsername, strPassword);
+			}
 			else
 				continue;
 			
@@ -42,6 +47,9 @@ public class MainApp {
 					
 				
 			}while(loggedIn);
+			
+			myUser.myDB.db_conn.close();
+
 
 		}while(true);
 	}	

@@ -128,11 +128,13 @@ public class DatabaseHandler{
 				
 				if(conn_edepot == true)
 				{
-					if(edepotCounter != 0)
+					if(edepotCounter != 1)
 					{
 						throw new CustomException("Incorrect table count");
 					}
 				}
+				
+				rs.close();
 						
 			}
 			catch (SQLException e){
