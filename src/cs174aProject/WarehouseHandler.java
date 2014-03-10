@@ -6,11 +6,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.ArrayList;
 
-//TODO: Receive a shipping notice from a manufacturer
-//TODO: Receive a shipment
-//TODO: Fill an order which has a unique order number, and a list of items sold(and their quantities).
-//		If there are three or more items from the same manufacturer in the inventory that go below their respective stock level
-//		send a replenishment order to the manufacturer
+//CLASS IS DONE
 
 public class WarehouseHandler extends UserHandler {
 
@@ -583,15 +579,95 @@ public class WarehouseHandler extends UserHandler {
 		{
 			Statement stmt = myDB.db_conn.createStatement();
 			StringBuilder myQuery = new StringBuilder(150);
-			myQuery.append("SELECT I.stock_num");
-			myQuery.append(" FROM EDEPOT_INVENTORY I");
-			myQuery.append(" WHERE I.manufacturer = " + "\'" + manufacturer + "\'" + " AND I.model_num = " + "\'" + modelNum + "\'");
+			myQuery.append("SELECT *");
+			myQuery.append(" FROM EDEPOT_SHIPPING_NOTICE S");
+			myQuery.append(" WHERE S.received = " + "\'" + "FALSE" + "\'");
 			
 			ResultSet rs = stmt.executeQuery(myQuery.toString());
 			myQuery.setLength(0);
 			
-
+			ResultSetMetaData rsmd = rs.getMetaData();
+			int numColumns = rsmd.getColumnCount();
+			while(rs.next())
+			{
+				for(int i = 1; i <= numColumns - 1; i++)
+				{
+					if(i > 1) System.out.print(",   ");
+					String columnValue = rs.getString(i);
+					System.out.print(rsmd.getColumnName(i) + ": " + columnValue);
+				}
+				System.out.println("");
+			}
+					
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		System.out.println("Type the shipping notice ID you want to receive: ");
+		Scanner scan = new Scanner(System.in);
+		String shippingNoticeId = scan.nextLine();
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT S.stock_num, S.quantity");
+			myQuery.append(" FROM EDEPOT_SHIPPING_NOTICE_ITEMS S");
+			myQuery.append(" WHERE S.shipping_notice_id = " + "\'" + shippingNoticeId + "\'");
 			
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+			
+			ArrayList<String> stockNums = new ArrayList<String>();
+			ArrayList<Integer> quantities = new ArrayList<Integer>();
+			
+			while(rs.next())
+			{
+				stockNums.add(rs.getString("STOCK_NUM"));
+				quantities.add(rs.getInt("QUANTITY"));
+			}
+			
+			for(int i = 0; i < stockNums.size(); i++)
+			{
+				try
+				{
+					myQuery.append("UPDATE EDEPOT_INVENTORY");
+					myQuery.append(" SET replenishment = replenishment - " + quantities.get(i) + ", quantity = quantity + " + quantities.get(i));
+					myQuery.append(" WHERE stock_num = " + "\'" + stockNums.get(i) + "\'");
+					
+					System.out.println(myQuery.toString());
+					stmt.executeQuery(myQuery.toString());
+					myQuery.setLength(0);
+					
+				}
+				catch(SQLException e)
+				{
+					e.printStackTrace();
+				}
+			}
+			
+			
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		//And now change the status of the shipping notice to TRUE
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("UPDATE EDEPOT_SHIPPING_NOTICE");
+			myQuery.append(" SET received = " + "\'" + "TRUE" + "\'");
+			myQuery.append(" WHERE shipping_notice_id = " + "\'" + shippingNoticeId + "\'");
+			
+			System.out.println(myQuery.toString());
+			stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+
 		}
 		catch(SQLException e)
 		{
