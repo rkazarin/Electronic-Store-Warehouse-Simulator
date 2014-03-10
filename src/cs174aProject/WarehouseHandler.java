@@ -24,7 +24,8 @@ public class WarehouseHandler extends UserHandler {
 	public boolean processInput() {
 
 		System.out.println("Type 'check quantity' to check quantity of item. Type 'receive notice' to receive a shipping notice."
-				+ "Type 'receive shipment' to receive a shipment. Type 'fill order' to fill an order. Type 'logout' to exit system.");
+				+ "Type 'receive shipment' to receive a shipment. Type 'fill order' to fill an order. Type 'logout' to exit system."
+				+ "Type 'practice' to run sample method");
 		
 		Scanner scan = new Scanner(System.in);
 		String s = scan.nextLine();
@@ -44,6 +45,14 @@ public class WarehouseHandler extends UserHandler {
 		else if(s.equals("receive notice"))
 		{
 			receiveShippingNotice();
+		}
+		else if(s.equals("practice"))
+		{
+			makeNewUniqueStockNum();
+		}
+		else if(s.equals("receive shipment"))
+		{
+			receiveShipment();
 		}
 		else if(s.equals("logout"))
 		{
@@ -331,12 +340,265 @@ public class WarehouseHandler extends UserHandler {
 		}
 		
 		//System.out.println(lastOrderId);
-		return lastReplenishmentOrderId;
+		return lastReplenishmentOrderId + 1;
 		
 	}
 	
 	public void receiveShippingNotice()
 	{
+		System.out.println("Enter shipping company name: ");
+		Scanner scan = new Scanner(System.in);
+		String shippingCompany = scan.nextLine();
+		System.out.println("Enter manufacturer name: ");
+		String manufacturer = scan.nextLine();
+		
+		System.out.println("Enter model numbers and quantities.");
+		
+		ArrayList<String> modelNums = new ArrayList<String>();
+		ArrayList<Integer> quantities = new ArrayList<Integer>();
+		ArrayList<String> stockNums = new ArrayList<String>();
+		ArrayList<String> stockNumberStatus = new ArrayList<String>();
+		
+		do
+		{
+			Scanner scan2 = new Scanner(System.in);
+			
+			System.out.println("Enter model number or type 'done' to complete shipping notice: ");
+			String modelNum = scan2.nextLine();
+			if(modelNum.equals("done")){
+				break;
+			}
+			else
+			{
+				modelNums.add(modelNum);
+			}
+			System.out.println("Enter quantity for this model number: ");
+			int quantity = scan2.nextInt();
+			
+			quantities.add(quantity);
+			
+			String stockNum = "";
+			
+			//Now that we have the manufacturer/model_num, query Inventory to see if the stockNum for this already exists
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("SELECT I.stock_num");
+				myQuery.append(" FROM EDEPOT_INVENTORY I");
+				myQuery.append(" WHERE I.manufacturer = " + "\'" + manufacturer + "\'" + " AND I.model_num = " + "\'" + modelNum + "\'");
+				
+				ResultSet rs = stmt.executeQuery(myQuery.toString());
+				myQuery.setLength(0);
+				
+				if(!rs.next())
+				{
+					System.out.println("New product. Need to make a new stock_num");
+					stockNum = makeNewUniqueStockNum();
+					stockNumberStatus.add("NEW");
+					
+				}
+				else
+				{
+					System.out.println("This stock num already exists");
+					stockNum = rs.getString("STOCK_NUM");
+					stockNumberStatus.add("EXISTING");
+				}
+			}
+			catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+			
+			stockNums.add(stockNum);
+			
+		}while(true);
+		
+		//Now insert into shipping_notice and shipping_notice_has_items
+		try
+		{
+			String shippingNoticeId = makeNewUniqueStockNum();
+			
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("INSERT INTO EDEPOT_SHIPPING_NOTICE");
+			myQuery.append(" (shipping_notice_id, shipping_company_name, received)");
+			myQuery.append(" VALUES");
+			myQuery.append(" (" + "\'" + shippingNoticeId + "\'" + "," + "\'" + shippingCompany + "\'" + "," + "\'" + "FALSE" + "\'" + ")");			
+			stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+			
+			for(int i = 0; i < modelNums.size(); i++)
+			{
+				myQuery.append("INSERT INTO EDEPOT_SHIPPING_NOTICE_ITEMS");
+				myQuery.append(" (shipping_notice_id, stock_num, manufacturer, model_num, quantity)");
+				myQuery.append(" VALUES");
+				myQuery.append(" (" + "\'" + shippingNoticeId + "\'" + "," + "\'" + stockNums.get(i) + "\'" + "," + "\'" + manufacturer 
+						+ "\'" + "," + "\'" + modelNums.get(i) + "\'" + "," + quantities.get(i) + ")");			
+				stmt.executeQuery(myQuery.toString());
+				myQuery.setLength(0);
+			}
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		//Now, if the stockNum already existed, just update the replenishment quantity with the quantity.
+		//However if the stockNum was newly generated, insert a new row into Inventory and prompt EDEPOT manager for remaining info.
+		for(int i = 0; i < modelNums.size(); i++)
+		{
+			if(stockNumberStatus.get(i).equals("EXISTING"))
+			{
+				try
+				{
+					Statement stmt = myDB.db_conn.createStatement();
+					StringBuilder myQuery = new StringBuilder(150);
+					myQuery.append("UPDATE EDEPOT_INVENTORY");
+					myQuery.append(" SET replenishment = replenishment + " + quantities.get(i));
+					myQuery.append(" WHERE stock_num = " + "\'" + stockNums.get(i) + "\'");
+					
+					ResultSet rs = stmt.executeQuery(myQuery.toString());
+					myQuery.setLength(0);
+					
+				}
+				catch(SQLException e)
+				{
+					e.printStackTrace();
+				}
+			}
+			
+			else
+			{
+				
+				System.out.println("A new product is being inserted into the Inventory.");
+				System.out.println("Please enter minimum stock level for: " + manufacturer + ": " + modelNums.get(i));
+				Scanner scan3 = new Scanner(System.in);
+				int minStockLevel = scan3.nextInt();
+				System.out.println("Please enter maximum stock level for this product: ");
+				int maxStockLevel = scan3.nextInt();
+				System.out.println("Please enter the location of this product: ");
+				Scanner scan4 = new Scanner(System.in);
+				String location = scan4.nextLine();
+				
+				try
+				{
+					Statement stmt = myDB.db_conn.createStatement();
+					StringBuilder myQuery = new StringBuilder(150);
+					myQuery.append("INSERT INTO EDEPOT_INVENTORY");
+					myQuery.append(" (stock_num, manufacturer, model_num, quantity, min_stock_level, max_stock_level, location, replenishment)");
+					myQuery.append(" VALUES");
+					myQuery.append(" (" + "\'" + stockNums.get(i) + "\'" + "," + "\'" + manufacturer + "\'" + "," + "\'" + modelNums.get(i) + "\'" 
+									+ "," + 0 + "," + minStockLevel + "," + maxStockLevel + "," + "\'" + location + "\'" + "," + quantities.get(i) + ")");			
+					System.out.println(myQuery.toString());
+					stmt.executeQuery(myQuery.toString());
+					myQuery.setLength(0);
+										
+				}
+				catch(SQLException e)
+				{
+					e.printStackTrace();
+				}
+			}
+		}
+		
 		
 	}
+	
+	public String makeNewUniqueStockNum()
+	{
+		//Ascii of 'A' = 65;
+		//Ascii of 'Z' = 90;
+		
+		String newStockNum = "";
+		
+		while(true)
+		{
+		//For leading capital letter
+			int asciiLetter1 = 65 + (int)(Math.random() * ((90-65) + 1));
+			int asciiLetter2 = 65 + (int)(Math.random() * ((90-65) + 1));
+			
+			//For the 5 numbers (0-9)
+			//Ascii for '0' = 48
+			//Ascii for '9' = 57
+			int asciiNum1 = 48 + (int)(Math.random() * ((57-48) + 1));
+			int asciiNum2 = 48 + (int)(Math.random() * ((57-48) + 1));
+			int asciiNum3 = 48 + (int)(Math.random() * ((57-48) + 1));
+			int asciiNum4 = 48 + (int)(Math.random() * ((57-48) + 1));
+			int asciiNum5 = 48 + (int)(Math.random() * ((57-48) + 1));
+			
+			String letter1 = Character.toString((char)asciiLetter1);
+			String letter2 = Character.toString((char)asciiLetter2);
+			String num1 = Character.toString((char)asciiNum1);
+			String num2 = Character.toString((char)asciiNum2);
+			String num3 = Character.toString((char)asciiNum3);
+			String num4 = Character.toString((char)asciiNum4);
+			String num5 = Character.toString((char)asciiNum5);
+			
+			newStockNum = letter1 + letter2 + num1 + num2 + num3 + num4 + num5;
+			
+			System.out.println(newStockNum);
+						
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("SELECT I.stock_num");
+				myQuery.append(" FROM EDEPOT_INVENTORY I");
+				myQuery.append(" WHERE I.stock_num = " + "\'" + newStockNum + "\'");
+				
+				//System.out.println(myQuery.toString());
+				ResultSet rs = stmt.executeQuery(myQuery.toString());
+				
+				if(!rs.next())
+				{
+					System.out.println("This stock num is new!");
+					rs.close();
+					break;
+				}
+				else
+				{
+					System.out.println("This stock num already exists");
+					rs.close();
+					continue;
+				}
+				
+			}
+			catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+		
+		}
+		
+		return newStockNum;
+
+	}
+	
+	
+	public void receiveShipment()
+	{
+		//First list all unreceived shipping notices
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT I.stock_num");
+			myQuery.append(" FROM EDEPOT_INVENTORY I");
+			myQuery.append(" WHERE I.manufacturer = " + "\'" + manufacturer + "\'" + " AND I.model_num = " + "\'" + modelNum + "\'");
+			
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+			
+
+			
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+	
+	}
+	
+	
 }

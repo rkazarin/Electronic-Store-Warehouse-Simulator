@@ -128,7 +128,7 @@ public class DatabaseHandler{
 				
 				if(conn_edepot == true)
 				{
-					if(edepotCounter != 2)
+					if(edepotCounter != 4)
 					{
 						throw new CustomException("Incorrect table count");
 					}
