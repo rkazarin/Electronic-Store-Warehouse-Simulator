@@ -10,10 +10,7 @@ import java.util.Scanner;
 
 import javax.swing.text.html.HTMLDocument.Iterator;
 
-//TODO: Add Search by description attribute and search for accessory of item
-//TODO: Delete item from shopping cart
-//TODO: Find previous order by the order number
-//TODO: Re-run a previous order
+//Todo: Recalculate status after each order
 
 public class CustomerHandler extends UserHandler {
 	HashMap<String, Integer> shoppingCart = new HashMap<String, Integer>();
@@ -79,9 +76,10 @@ public class CustomerHandler extends UserHandler {
 			return checkCustomerLogin();
 		}
 		else{
-			System.out.println("Type 'shop' to search. Type 'add' to add item into cart. "
-					+ "Type 'view' to view cart contents. Type 'checkout' to purchase what is in cart. "
-					+ "Type 'logout' to logout");
+			System.out.println("Type 'shop' to search. Type 'add' to add item into cart.\n "
+					+ "Type 'view' to view cart contents. Type 'delete' to delete an item from shopping cart. \n Type 'checkout' to purchase what is in cart. "
+					+ "Type 'find' to see all previoud orders" + "Type 'rerun' to rerun a previous order" + "Type 'logout' to logout");
+			
 			Scanner scan = new Scanner(System.in);
 			String s = scan.nextLine();
 			if(s.equals("shop"))
@@ -96,9 +94,21 @@ public class CustomerHandler extends UserHandler {
 			{
 				viewItemsInShoppingCart();
 			}
+			else if(s.equals("delete"))
+			{
+				deleteItemInShoppingCart();
+			}
+			else if(s.equals("find"))
+			{
+				viewPreviousOrders();
+			}
 			else if(s.equals("checkout"))
 			{
 				checkoutOrder();
+			}
+			else if(s.equals("rerun"))
+			{
+				rerunOrder();
 			}
 			else if(s.equals("logout"))
 			{
@@ -332,9 +342,18 @@ public class CustomerHandler extends UserHandler {
 			ResultSet rs = stmt.executeQuery(finalSearchQuery.toString());
 			//ResultSetMetaData rsmd = rs.getMetaData();
 			//int numColumns = rsmd.getColumnCount();
+			
+			ArrayList<String> stockNumberResults = new ArrayList<String>();
 			while(rs.next())
 			{
-				String stockNumber = rs.getString("STOCK_NUM");
+				stockNumberResults.add(rs.getString("STOCK_NUM"));
+			}
+			
+			rs.close();
+			
+			for(int i = 0; i < stockNumberResults.size(); i++)
+			{
+				String stockNumber = stockNumberResults.get(i);
 				try
 				{
 					Statement stmt2 = myDB.db_conn.createStatement();
@@ -349,11 +368,11 @@ public class CustomerHandler extends UserHandler {
 					
 					while(rs2.next())
 					{
-						for(int i = 1; i <= numColumns; i++)
+						for(int j = 1; j <= numColumns; j++)
 						{
-							if(i > 1) System.out.print(",   ");
-							String columnValue = rs2.getString(i);
-							System.out.print(rsmd.getColumnName(i) + ": " + columnValue);
+							if(j > 1) System.out.print(",   ");
+							String columnValue = rs2.getString(j);
+							System.out.print(rsmd.getColumnName(j) + ": " + columnValue);
 						}
 						System.out.println("");
 					}
@@ -395,6 +414,17 @@ public class CustomerHandler extends UserHandler {
 		for(Map.Entry<String, Integer> entry :  shoppingCart.entrySet()){
 			System.out.println("Stock Number: " + entry.getKey() + " - " + "Quantity: " + entry.getValue());
 		}
+	}
+	
+	public void deleteItemInShoppingCart()
+	{
+		viewItemsInShoppingCart();
+		System.out.println("Enter stock number of item to delete: ");
+		Scanner scan = new Scanner(System.in);
+		String stockNumber = scan.nextLine();
+		
+		shoppingCart.remove(stockNumber);
+		viewItemsInShoppingCart();
 	}
 
 	public void checkoutOrder()
@@ -661,6 +691,212 @@ public class CustomerHandler extends UserHandler {
 		shoppingCart.clear();
 		
 	}
+	
+	public void viewPreviousOrders()
+	{
+		//General idea: Query Emart_Orders for all unprocessed orders. For each of these orders, print out the items/price/quantities that belong to it
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("SELECT O.order_id");
+			myQuery.append(" FROM EMART_ORDERS O");
+			myQuery.append(" WHERE O.customer_id = " + "\'" + customerID + "\'");
+			//System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+			
+			ArrayList<String> orderIdResults = new ArrayList<String>();
+			while(rs.next())
+			{
+				orderIdResults.add(rs.getString("ORDER_ID"));
+			}
+			
+			rs.close();
+			
+			for(int i = 0; i < orderIdResults.size(); i++)
+			{
+				String orderId = orderIdResults.get(i);
+				
+				myQuery.append("SELECT I.stock_num, I.price, I.quantity");
+				myQuery.append(" FROM EMART_ORDER_HAS_ITEM I");
+				myQuery.append(" WHERE I.order_id = " + "\'" + orderId + "\'");
+				//System.out.println(myQuery.toString());
+				ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+				myQuery.setLength(0);
+				
+				System.out.println("Order_ID: " + orderId);
+				
+				while(rs2.next())
+				{
+					System.out.println("\t STOCK_NUM: " + rs2.getString("STOCK_NUM") 
+							+ " PRICE: " + rs2.getString("PRICE") + " QUANTITY: " +rs2.getString("QUANTITY"));
+					
+				}
+				
+				rs2.close();
+				
+			}
+			rs.close();
+			
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	public void rerunOrder()
+	{
+		viewPreviousOrders();
 		
-
+		System.out.println("Enter the orderid of the order you would like to rerun: ");
+		Scanner scan = new Scanner(System.in);
+		String orderId = scan.nextLine();
+		
+		HashMap<String, Integer> rerunOrderCart = new HashMap<String, Integer>();
+		
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			
+			myQuery.append("SELECT I.stock_num, I.quantity");
+			myQuery.append(" FROM EMART_ORDER_HAS_ITEM I");
+			myQuery.append(" WHERE I.order_id = " + "\'" + orderId + "\'");
+			//System.out.println(myQuery.toString());
+			ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+			myQuery.setLength(0);
+			
+			while(rs2.next())
+			{
+				rerunOrderCart.put(rs2.getString("STOCK_NUM"), rs2.getInt("QUANTITY"));
+			}
+			
+			
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		
+		double subTotal = 0;
+		
+		for(Map.Entry<String, Integer> entry : rerunOrderCart.entrySet())
+		{
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("SELECT C.price");
+				myQuery.append(" FROM EMART_CATALOG C");
+				myQuery.append(" WHERE C.stock_num " + " = " + "\'" + entry.getKey() + "\'");
+				
+				//System.out.println(myQuery.toString());
+				ResultSet rs = stmt.executeQuery(myQuery.toString());
+				
+				while(rs.next())
+				{
+					double price = rs.getDouble("PRICE");
+					//System.out.println("Price: " + price);
+					int quantity = entry.getValue();
+					//System.out.println("Quantity: " + quantity);
+					subTotal += price * quantity;
+				}
+				
+				rs.close();
+			
+			}catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+			
+		}
+		
+		//System.out.println("Current subtotal: " + subTotal);
+	
+		//Compute status discount
+		double discountPercentage = computeStatusDiscount();
+		//Apply discountPercentage on subTotal
+		double discount = subTotal * (discountPercentage/100);
+		//Compute shipping waive amount, and percentage
+		double shippingWaiveAmount = computeShippingWaiveAmount();
+		double shippingPercentage = computeShippingPercentage();
+		
+		//System.out.println(shippingPercentage);
+		
+		double shippingFee = 0;
+		if(subTotal <= shippingWaiveAmount)
+		{
+			shippingFee = subTotal*(shippingPercentage/100);
+		}
+		
+		int newOrderId = getLastOrderId()+1;
+		double total = subTotal - discount + shippingFee;
+		
+		////////INSERTING ORDER/////////
+		
+		long unixTime = System.currentTimeMillis() / 1000L;
+		
+		//insert one row into EMART_ORDERS
+		try
+		{
+			Statement stmt = myDB.db_conn.createStatement();
+			StringBuilder myQuery = new StringBuilder(150);
+			myQuery.append("INSERT INTO EMART_ORDERS");
+			myQuery.append(" (order_id, customer_id, order_time, order_total, processed)");
+			myQuery.append(" VALUES");
+			myQuery.append(" (" + newOrderId + "," + "\'" + customerID + "\'" + "," + unixTime + "," + total + "," + "\'" + "FALSE" + "\'" + ")");
+			
+			System.out.println(myQuery.toString());
+			ResultSet rs = stmt.executeQuery(myQuery.toString());
+			rs.close();
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
+		//insert all items in shopping cart into EMART_ORDER_HAS_ITEM
+		for(Map.Entry<String, Integer> entry : rerunOrderCart.entrySet())
+		{
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("SELECT C.price");
+				myQuery.append(" FROM EMART_CATALOG C");
+				myQuery.append(" WHERE C.stock_num " + " = " + "\'" + entry.getKey() + "\'");
+				
+				//System.out.println(myQuery.toString());
+				ResultSet rs = stmt.executeQuery(myQuery.toString());
+				
+				while(rs.next())
+				{
+					double price = rs.getDouble("PRICE");
+					myQuery.setLength(0);
+					myQuery.append("INSERT INTO EMART_ORDER_HAS_ITEM");
+					myQuery.append(" (order_id, stock_num, price, quantity)");
+					myQuery.append(" VALUES");
+					myQuery.append(" (" + newOrderId + "," + "\'" + entry.getKey() + "\'" + "," + price + "," + entry.getValue() + ")");
+					
+					//System.out.println(myQuery.toString());
+					ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+					rs2.close();
+				}
+		
+		
+			}
+			catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+	
+		}
+		
+		System.out.println("Your order has been processed. Your Order ID is: " + newOrderId);
+		
+	}
+		
 }
