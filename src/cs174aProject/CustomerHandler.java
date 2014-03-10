@@ -3,6 +3,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -10,6 +11,9 @@ import java.util.Scanner;
 import javax.swing.text.html.HTMLDocument.Iterator;
 
 //TODO: Add Search by description attribute and search for accessory of item
+//TODO: Delete item from shopping cart
+//TODO: Find previous order by the order number
+//TODO: Re-run a previous order
 
 public class CustomerHandler extends UserHandler {
 	HashMap<String, Integer> shoppingCart = new HashMap<String, Integer>();
@@ -149,15 +153,66 @@ public class CustomerHandler extends UserHandler {
 			searchQuery.put("category", category);
 		}
 		
+		ArrayList<String> descriptionAttributes = new ArrayList<String>();
+		ArrayList<String> descriptionValues = new ArrayList<String>();
+		boolean searchByDescription = false;
+		
+		System.out.println("Enter 'd' if you want to search by description. If not press [enter]: ");
+		s = scan.nextLine();
+		if(s.equals("d"))
+		{
+			searchByDescription = true;
+			
+			do
+			{
+				System.out.println("Enter description attribute or press 'done' if no more: ");
+				Scanner scan2 = new Scanner(System.in);
+				String attribute = scan2.nextLine();
+				if(attribute.equals("done"))
+				{
+					break;
+				}
+				System.out.println("Enter description value: ");
+				String value = scan2.nextLine();
+				descriptionAttributes.add(attribute);
+				descriptionValues.add(value);
+				
+			}while(true);
+		}
+		
+		boolean searchByAccessory = false;
+		System.out.println("Enter the stock_num you want to find accessories of. Press [enter] otherwise: ");
+		String productStockNum = "";
+		s = scan.nextLine();
+		StringBuilder accessoryQuery = new StringBuilder();
+		
+		if(!s.equals(""))
+		{
+			productStockNum = s;
+			searchByAccessory = true;
+			
+			accessoryQuery.append("SELECT A.stock_num");
+			accessoryQuery.append(" FROM EMART_ITEM_IS_ACCESSORY A");
+			accessoryQuery.append(" WHERE A.accessory_of = " + "\'" + productStockNum + "\'");
+			
+			
+		}
+		
 		try
 		{
 			Statement stmt = myDB.db_conn.createStatement();
-			StringBuilder myQuery = new StringBuilder(500);
-			myQuery.append("SELECT *");
-			myQuery.append(" FROM EMART_CATALOG C");
+			StringBuilder myQuery = new StringBuilder();
 			
-			if(!searchQuery.isEmpty())
+			if(searchQuery.isEmpty() && searchByDescription == false)
 			{
+				myQuery.append("SELECT C.stock_num");
+				myQuery.append(" FROM EMART_CATALOG C");
+			}
+			
+			else if(!searchQuery.isEmpty() && searchByDescription == false)
+			{
+				myQuery.append("SELECT C.stock_num");
+				myQuery.append(" FROM EMART_CATALOG C");
 				myQuery.append(" WHERE");
 				int elementNumber = 0;
 				for(Map.Entry<String, String> entry :  searchQuery.entrySet())
@@ -181,20 +236,135 @@ public class CustomerHandler extends UserHandler {
 				}
 			}
 			
+			else if(searchQuery.isEmpty() && searchByDescription == true)
+			{
+				myQuery.append("SELECT C.stock_num");
+				myQuery.append(" FROM EMART_CATALOG C, EMART_ITEM_DESCRIPTION D");
+				myQuery.append(" WHERE C.stock_num = D.stock_num");
+				
+				for(int i = 0; i < descriptionAttributes.size(); i++)
+				{
+					if(descriptionAttributes.size() == 1)
+					{
+						myQuery.append(" AND (D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")");
+						break;
+					}
+					if(i == 0)
+					{
+						myQuery.append(" AND ((D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")");
+					}
+					else if(i == descriptionAttributes.size() - 1)
+					{
+						myQuery.append(" OR (D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")" + ")");
+					}
+					else
+					{
+						myQuery.append(" OR (D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")");
+					}
+					
+				}
+				
+			}
+			
+			else if(!searchQuery.isEmpty() && searchByDescription == true)
+			{
+				myQuery.append("SELECT C.stock_num");
+				myQuery.append(" FROM EMART_CATALOG C, EMART_ITEM_DESCRIPTION D");
+				myQuery.append(" WHERE C.stock_num = D.stock_num");
+				
+				for(Map.Entry<String, String> entry :  searchQuery.entrySet())
+				{
+					myQuery.append(" AND C." + entry.getKey() + " = " + "\'" + entry.getValue() + "\'");
+
+				}
+				
+				for(int i = 0; i < descriptionAttributes.size(); i++)
+				{
+					if(descriptionAttributes.size() == 1)
+					{
+						myQuery.append(" AND (D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")");
+						break;
+					}
+					if(i == 0)
+					{
+						myQuery.append(" AND ((D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")");
+					}
+					else if(i == descriptionAttributes.size() - 1)
+					{
+						myQuery.append(" OR (D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")" + ")");
+					}
+					else
+					{
+						myQuery.append(" OR (D.attribute = " + "\'" + descriptionAttributes.get(i) + "\'" + "AND D.value = " + "\'" + descriptionValues.get(i) + "\'" + ")");
+					}
+					
+				}
+				
+				
+				
+			}
+			
 			System.out.println(myQuery.toString());
+			System.out.println(accessoryQuery.toString());
+			StringBuilder finalSearchQuery = new StringBuilder();
+			
+			if(searchQuery.isEmpty() && searchByAccessory == true)
+			{
+				finalSearchQuery = accessoryQuery;
+			}
+			else if(searchQuery.isEmpty() && searchByAccessory == false)
+			{
+				finalSearchQuery = myQuery;
+			}
+			else if(!searchQuery.isEmpty() && searchByAccessory == true)
+			{
+				finalSearchQuery.append(myQuery);
+				finalSearchQuery.append(" INTERSECT ");
+				finalSearchQuery.append(accessoryQuery);
+			}
+			else if(!searchQuery.isEmpty() && searchByAccessory == false)
+			{
+				finalSearchQuery = myQuery;
+			}
 	
-			ResultSet rs = stmt.executeQuery(myQuery.toString());
-			ResultSetMetaData rsmd = rs.getMetaData();
-			int numColumns = rsmd.getColumnCount();
+			System.out.println(finalSearchQuery.toString());
+			
+			ResultSet rs = stmt.executeQuery(finalSearchQuery.toString());
+			//ResultSetMetaData rsmd = rs.getMetaData();
+			//int numColumns = rsmd.getColumnCount();
 			while(rs.next())
 			{
-				for(int i = 1; i <= numColumns; i++)
+				String stockNumber = rs.getString("STOCK_NUM");
+				try
 				{
-					if(i > 1) System.out.print(",   ");
-					String columnValue = rs.getString(i);
-					System.out.print(rsmd.getColumnName(i) + ": " + columnValue);
+					Statement stmt2 = myDB.db_conn.createStatement();
+					StringBuilder myQuery2 = new StringBuilder();
+					myQuery2.append("SELECT *");
+					myQuery2.append(" FROM EMART_CATALOG C");
+					myQuery2.append(" WHERE C.stock_num " + " = " + "\'" + stockNumber + "\'");
+					
+					ResultSet rs2 = stmt.executeQuery(myQuery2.toString());
+					ResultSetMetaData rsmd = rs2.getMetaData();
+					int numColumns = rsmd.getColumnCount();
+					
+					while(rs2.next())
+					{
+						for(int i = 1; i <= numColumns; i++)
+						{
+							if(i > 1) System.out.print(",   ");
+							String columnValue = rs2.getString(i);
+							System.out.print(rsmd.getColumnName(i) + ": " + columnValue);
+						}
+						System.out.println("");
+					}
+					
+					rs2.close();
+					
 				}
-				System.out.println("");
+				catch(SQLException e)
+				{
+					e.printStackTrace();
+				}				
 			}
 			
 			rs.close();
