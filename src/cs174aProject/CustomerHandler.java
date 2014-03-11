@@ -78,7 +78,7 @@ public class CustomerHandler extends UserHandler {
 		else{
 			System.out.println("Type 'shop' to search. Type 'add' to add item into cart.\n "
 					+ "Type 'view' to view cart contents. Type 'delete' to delete an item from shopping cart. \n Type 'checkout' to purchase what is in cart. "
-					+ "Type 'find' to see all previoud orders" + "Type 'rerun' to rerun a previous order" + "Type 'logout' to logout");
+					+ "Type 'find' to see all previous orders" + "Type 'rerun' to rerun a previous order" + "Type 'logout' to logout");
 			
 			Scanner scan = new Scanner(System.in);
 			String s = scan.nextLine();

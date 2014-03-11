@@ -22,6 +22,33 @@ public abstract class UserHandler {
 		dbPassword = str_pass;
 		myDB = new DatabaseHandler(dbDescription,dbUser, dbPassword, eMart_db_accessed, eDepot_db_accessed);
 	}
+	
+	public void displayResultSet(ResultSet my_rs)
+	{
+		try{
+			ResultSetMetaData rsmd = my_rs.getMetaData();
+			int numColumns = rsmd.getColumnCount();
+			if(my_rs.next() == false){
+				System.out.println("No Entries Selected.");
+			}
+			else{
+				do{
+					for(int j = 1; j <= numColumns; j++)
+					{
+							if(j > 1) System.out.print(",   ");
+							String columnValue = my_rs.getString(j);
+							System.out.print(rsmd.getColumnName(j) + ": " + columnValue);
+					}
+					System.out.println("");
+				}while(my_rs.next() != false);
+			}
+			
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+	}
 	public abstract boolean processInput();
 	
 }

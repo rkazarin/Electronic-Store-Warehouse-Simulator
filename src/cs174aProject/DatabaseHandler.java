@@ -27,7 +27,15 @@ public class DatabaseHandler{
 			e.printStackTrace();
 		}
 	}
-	
+	public void setAutoCommit(boolean val)
+	{
+		try{
+		db_conn.setAutoCommit(val);
+		}catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+	}
 	public ResultSet executeQuery(String query)
 	{
 		ResultSet r = null;

@@ -109,6 +109,8 @@ public class WarehouseHandler extends UserHandler {
 			ResultSet rs = stmt.executeQuery(myQuery.toString());
 			myQuery.setLength(0);
 			
+			
+			
 			while(rs.next())
 			{
 				String orderId = rs.getString("ORDER_ID");
@@ -116,8 +118,10 @@ public class WarehouseHandler extends UserHandler {
 				myQuery.append("SELECT I.stock_num, I.price, I.quantity");
 				myQuery.append(" FROM EMART_ORDER_HAS_ITEM I");
 				myQuery.append(" WHERE I.order_id = " + "\'" + orderId + "\'");
+				
+				Statement stmt2 = myDB.db_conn.createStatement();
 				//System.out.println(myQuery.toString());
-				ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+				ResultSet rs2 = stmt2.executeQuery(myQuery.toString());
 				myQuery.setLength(0);
 				
 				System.out.println("Order_ID: " + orderId);
@@ -179,6 +183,12 @@ public class WarehouseHandler extends UserHandler {
 				
 				int newWarehouseQuantity = quantityWarehouse - quantityPurchased;
 				
+				//WHEN FILLING AN ORDER, IF THE NEW WAREHOUSE QUANTITY IS GOING TO BE LESS THAN 0, DO NOT FILL THIS ORDER
+				if(newWarehouseQuantity < 0)
+				{
+					System.out.println("Not enough in stock to fill order. Aborting fill order.");
+					return;
+				}
 				
 				myQuery.append("UPDATE EDEPOT_INVENTORY");
 				myQuery.append(" SET quantity = " + newWarehouseQuantity);
@@ -228,13 +238,16 @@ public class WarehouseHandler extends UserHandler {
 			if(!rs.next())
 			{
 				System.out.println("No replenishment order needed.");
+				rs.close();
 				return false;
 			}
 			else
 			{
 				System.out.println("Need to send replenishment order.");
+				rs.close();
 				return true;
 			}
+			
 			
 		}
 		catch(SQLException e)
@@ -267,7 +280,7 @@ public class WarehouseHandler extends UserHandler {
 				String currentManufacturer = rs.getString("MANUFACTURER");
 				System.out.println(currentManufacturer);
 				
-				myQuery.append("SELECT I.model_num");
+				myQuery.append("SELECT I.model_num, I.quantity, I.max_stock_level");
 				myQuery.append(" FROM EDEPOT_INVENTORY I");
 				myQuery.append(" WHERE I.manufacturer = " + "\'" + currentManufacturer + "\'");
 				myQuery.append(" AND I.quantity < I.max_stock_level");
@@ -276,20 +289,30 @@ public class WarehouseHandler extends UserHandler {
 				myQuery.setLength(0);
 				
 				ArrayList<String> modelNums = new ArrayList<String>();
+				ArrayList<Integer> quantities = new ArrayList<Integer>();
+				ArrayList<Integer> maxStockLevels = new ArrayList<Integer>();
 				while(rs2.next())
 				{
 					String currentModelNum = rs2.getString("MODEL_NUM");
+					int currentQuantity = rs2.getInt("QUANTITY");
+					int currentMaxStockLevel = rs2.getInt("MAX_STOCK_LEVEL");
 					modelNums.add(currentModelNum);
+					quantities.add(currentQuantity);
+					maxStockLevels.add(currentMaxStockLevel);
 				}
+				
+				rs2.close();
 				
 				for(int i = 0; i < modelNums.size(); i++)
 				{
 					String modelNum = modelNums.get(i);
 					
+					int quantity = maxStockLevels.get(i) - quantities.get(i);
+					
 					myQuery.append("INSERT INTO EDEPOT_REPLENISHMENT_ORDER");
-					myQuery.append(" (replenishment_order_id, manufacturer, model_num)");
+					myQuery.append(" (replenishment_order_id, manufacturer, model_num, quantity)");
 					myQuery.append(" VALUES");
-					myQuery.append(" (" + replenishmentOrderId + "," + "\'" + currentManufacturer + "\'" + "," + "\'" + modelNum + "\'" + ")");
+					myQuery.append(" (" + replenishmentOrderId + "," + "\'" + currentManufacturer + "\'" + "," + "\'" + modelNum + "\'" + "," + quantity + ")");
 					
 					System.out.println(myQuery.toString());
 					
@@ -300,6 +323,8 @@ public class WarehouseHandler extends UserHandler {
 				
 				
 			}
+			
+			rs.close();
 			
 			System.out.println("Replenishment Order ID: " + replenishmentOrderId + " sent!");
 		}
@@ -392,6 +417,7 @@ public class WarehouseHandler extends UserHandler {
 					System.out.println("New product. Need to make a new stock_num");
 					stockNum = makeNewUniqueStockNum();
 					stockNumberStatus.add("NEW");
+					rs.close();
 					
 				}
 				else
@@ -399,6 +425,7 @@ public class WarehouseHandler extends UserHandler {
 					System.out.println("This stock num already exists");
 					stockNum = rs.getString("STOCK_NUM");
 					stockNumberStatus.add("EXISTING");
+					rs.close();
 				}
 			}
 			catch(SQLException e)
@@ -456,6 +483,7 @@ public class WarehouseHandler extends UserHandler {
 					
 					ResultSet rs = stmt.executeQuery(myQuery.toString());
 					myQuery.setLength(0);
+					rs.close();
 					
 				}
 				catch(SQLException e)
@@ -628,6 +656,41 @@ public class WarehouseHandler extends UserHandler {
 				stockNums.add(rs.getString("STOCK_NUM"));
 				quantities.add(rs.getInt("QUANTITY"));
 			}
+			
+			rs.close();
+			
+			//WHEN RECEIVING A SHIPMENT, IF ADDING THE RECECEIVING QUANTITY TO THE CURRENT QUANTITYT
+			//IS OVER THE MAX STOCK, DONT LET THE SHIPMENT COME THROUGH
+			
+			for(int j = 0; j < stockNums.size(); j++){
+				try
+				{
+					myQuery.append("SELECT I.QUANTITY, I.MAX_STOCK_LEVEL");
+					myQuery.append(" FROM EDEPOT_INVENTORY I");
+					myQuery.append(" WHERE I.stock_num = " + "\'" + stockNums.get(j) + "\'");
+					
+					ResultSet rs2 = stmt.executeQuery(myQuery.toString());
+					myQuery.setLength(0);
+					
+					while(rs2.next())
+					{	
+						if(quantities.get(j) + rs2.getInt("QUANTITY") > rs2.getInt("MAX_STOCK_LEVEL"))
+						{
+							System.out.println("This shipment will put some product over their max stock level. Cannot receive.");
+							return;
+						}
+					}
+				
+				}
+				catch(SQLException e)
+				{
+					e.printStackTrace();
+				}
+			}
+			
+			
+			
+			
 			
 			for(int i = 0; i < stockNums.size(); i++)
 			{
