@@ -148,11 +148,12 @@ public class CustomerHandler extends UserHandler {
 		myQuery1.append("FROM EMART_ORDER_HAS_ITEM O, EMART_ORDERS O2\n");
 		myQuery1.append("WHERE O.ORDER_ID = "+ Integer.toString(order_id) +" AND O2.CUSTOMER_ID = "+"\'"+customerID+"\' AND O.ORDER_ID = O2.ORDER_ID \n");
 		ResultSet myRS = myDB.executeQuery(myQuery.toString());
-		ResultSet myRS2 = myDB.executeQuery(myQuery1.toString());
 		System.out.println("Order Information :");
 		displayResultSet(myRS);
+		ResultSet myRS2 = myDB.executeQuery(myQuery1.toString());
 		System.out.println("Order Contents :");
 		displayResultSet(myRS2);
+
 
 	}
 	public void searchEmart()
@@ -517,7 +518,7 @@ public class CustomerHandler extends UserHandler {
 		total = Math.round(total * 100.0) / 100.0;
 		subTotal = Math.round(subTotal*100.0)/100.0;
 		double subTotal_discount = Math.round((subTotal-discount)*100.0)/100.0;
-		shippingFee = Math.round(shippingFee)/100.0;
+		//shippingFee = Math.round(shippingFee * 100)/100.0;
 		
 		//System.out.println(total);
 		insertOrder(orderId, total);
@@ -535,12 +536,14 @@ public class CustomerHandler extends UserHandler {
 	
 	public void printOrderConfirmation(int order_id)
 	{
+
 		StringBuilder myQuery = new StringBuilder();
 		myQuery.append("SELECT I.stock_num AS StockNumber, I.price AS UnitPrice, I.quantity AS Quantity\n");
 		myQuery.append("FROM EMART_ORDER_HAS_ITEM I\n");
 		myQuery.append(" WHERE I.order_id = " + Integer.toString(order_id));
 		ResultSet myrs = myDB.executeQuery(myQuery.toString());
 		displayResultSet(myrs);
+		//myDB.closeLastStatement();
 	}
 	public double computeStatusDiscount()
 	{

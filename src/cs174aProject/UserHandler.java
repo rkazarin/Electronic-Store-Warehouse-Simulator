@@ -22,11 +22,7 @@ public abstract class UserHandler {
 		dbPassword = str_pass;
 		myDB = new DatabaseHandler(dbDescription,dbUser, dbPassword, eMart_db_accessed, eDepot_db_accessed);
 	}
-	
-	public void terminateConnection()
-	{
-		myDB.closeConnection();
-	}
+
 	public void displayResultSet(ResultSet my_rs)
 	{
 		try{

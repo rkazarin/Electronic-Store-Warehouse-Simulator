@@ -8,6 +8,8 @@ public class DatabaseHandler{
 	String conn_descriptor = null;
 	String conn_username = null;
 	String conn_password = null;
+	Statement last_statement = null;
+	boolean last_statement_erased = false;
 	Connection db_conn = null;
 	boolean conn_emart = false;
 	boolean conn_edepot = false;
@@ -36,20 +38,32 @@ public class DatabaseHandler{
 			e.printStackTrace();
 		}
 	}
-	public void closeConnection()
+
+
+	public void closeLastStatement()
 	{
-		if(db_conn_init == true)
-			db_conn.close();
+		try
+		{
+			last_statement_erased = true;
+			last_statement.close();
+			last_statement = null;
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+		
 	}
 	public ResultSet executeQuery(String query)
 	{
 		ResultSet r = null;
-		Statement stmnt;
 		try
 		{
-			stmnt = db_conn.createStatement();
-			r = stmnt.executeQuery(query);
-			stmnt.close();
+			if(last_statement_erased == false && last_statement != null)
+				last_statement.close();
+			last_statement = db_conn.createStatement();
+			r = last_statement.executeQuery(query);
+			last_statement_erased = false;
 			return r;
 		}
 		catch(SQLException e) {
