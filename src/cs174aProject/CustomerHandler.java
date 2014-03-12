@@ -78,7 +78,7 @@ public class CustomerHandler extends UserHandler {
 		else{
 			System.out.println("Type 'shop' to search. Type 'add' to add item into cart.\n "
 					+ "Type 'view' to view cart contents. Type 'delete' to delete an item from shopping cart. \n Type 'checkout' to purchase what is in cart. "
-					+ "Type 'find' to see all previous orders" + "Type 'rerun' to rerun a previous order" + "Type 'logout' to logout");
+					+ "Type 'list past orders' to see all previous orders" +"Type 'lookup past order' to see all previous orders"+ "Type 'rerun' to rerun a previous order" + "Type 'logout' to logout");
 			
 			Scanner scan = new Scanner(System.in);
 			String s = scan.nextLine();
@@ -98,9 +98,13 @@ public class CustomerHandler extends UserHandler {
 			{
 				deleteItemInShoppingCart();
 			}
-			else if(s.equals("find"))
+			else if(s.equals("list past orders"))
 			{
 				viewPreviousOrders();
+			}
+			else if(s.equals("lookup past order"))
+			{
+				lookupPastOrder();
 			}
 			else if(s.equals("checkout"))
 			{
@@ -120,7 +124,37 @@ public class CustomerHandler extends UserHandler {
 		return true;
 		
 	}
-	
+	public void lookupPastOrder()
+	{
+		Scanner scan = new Scanner(System.in);
+
+		int order_id = -1;
+		while (order_id == -1)
+		{
+			System.out.print("Enter order number : ");
+			String str = scan.nextLine();
+			try{
+			  order_id = Integer.parseInt(str);
+			}catch (NumberFormatException e){
+				System.out.println("Incorrect Format");
+			}
+		}
+		StringBuilder myQuery = new StringBuilder();
+		StringBuilder myQuery1 = new StringBuilder();
+		myQuery.append("SELECT O.ORDER_ID AS ORDER_ID, O.PROCESSED AS ORDER_PROCESSED\n");
+		myQuery.append("FROM EMART_ORDERS O\n");
+		myQuery.append("WHERE O.ORDER_ID = " + Integer.toString(order_id) +" AND O.CUSTOMER_ID = "+"\'"+customerID+"\'\n");
+		myQuery1.append("SELECT O.STOCK_NUM AS STOCK_NUMBER, O.PRICE AS UNIT_PRICE, O.QUANTITY AS QUANTITY\n");
+		myQuery1.append("FROM EMART_ORDER_HAS_ITEM O, EMART_ORDERS O2\n");
+		myQuery1.append("WHERE O.ORDER_ID = "+ Integer.toString(order_id) +" AND O2.CUSTOMER_ID = "+"\'"+customerID+"\' AND O.ORDER_ID = O2.ORDER_ID \n");
+		ResultSet myRS = myDB.executeQuery(myQuery.toString());
+		ResultSet myRS2 = myDB.executeQuery(myQuery1.toString());
+		System.out.println("Order Information :");
+		displayResultSet(myRS);
+		System.out.println("Order Contents :");
+		displayResultSet(myRS2);
+
+	}
 	public void searchEmart()
 	{
 		String stockNum = "";
@@ -471,9 +505,7 @@ public class CustomerHandler extends UserHandler {
 		//Compute shipping waive amount, and percentage
 		double shippingWaiveAmount = computeShippingWaiveAmount();
 		double shippingPercentage = computeShippingPercentage();
-		
-		//System.out.println(shippingPercentage);
-		
+				
 		double shippingFee = 0;
 		if(subTotal <= shippingWaiveAmount)
 		{
@@ -482,14 +514,34 @@ public class CustomerHandler extends UserHandler {
 		
 		int orderId = getLastOrderId()+1;
 		double total = subTotal - discount + shippingFee;
+		total = Math.round(total * 100.0) / 100.0;
+		subTotal = Math.round(subTotal*100.0)/100.0;
+		double subTotal_discount = Math.round((subTotal-discount)*100.0)/100.0;
+		shippingFee = Math.round(shippingFee)/100.0;
 		
 		//System.out.println(total);
 		insertOrder(orderId, total);
+		printOrderConfirmation(orderId);
 		
-		
+		System.out.println("Discount percentage: " + discountPercentage);
+		System.out.println("Subtotal: " + subTotal);
+		System.out.println("Discount amount: " + discount);
+		System.out.println("Subtotal with discount: " + (subTotal_discount));
+		System.out.println("Shipping fee: " + shippingFee);
+		System.out.println("Total Order cost: " + total);
 		
 	}
 	
+	
+	public void printOrderConfirmation(int order_id)
+	{
+		StringBuilder myQuery = new StringBuilder();
+		myQuery.append("SELECT I.stock_num AS StockNumber, I.price AS UnitPrice, I.quantity AS Quantity\n");
+		myQuery.append("FROM EMART_ORDER_HAS_ITEM I\n");
+		myQuery.append(" WHERE I.order_id = " + Integer.toString(order_id));
+		ResultSet myrs = myDB.executeQuery(myQuery.toString());
+		displayResultSet(myrs);
+	}
 	public double computeStatusDiscount()
 	{
 		
@@ -603,7 +655,7 @@ public class CustomerHandler extends UserHandler {
 		{
 			Statement stmt = myDB.db_conn.createStatement();
 			StringBuilder myQuery = new StringBuilder(150);
-			myQuery.append("SELECT O.ORDER_ID");
+			myQuery.append("SELECT MAX(ORDER_ID) AS OID");
 			myQuery.append(" FROM EMART_ORDERS O");
 			
 			//System.out.println(myQuery.toString());
@@ -611,7 +663,7 @@ public class CustomerHandler extends UserHandler {
 			
 			while(rs.next())
 			{
-				lastOrderId++;
+				lastOrderId = rs.getInt("OID");
 			}
 			
 			rs.close();

@@ -36,6 +36,11 @@ public class DatabaseHandler{
 			e.printStackTrace();
 		}
 	}
+	public void closeConnection()
+	{
+		if(db_conn_init == true)
+			db_conn.close();
+	}
 	public ResultSet executeQuery(String query)
 	{
 		ResultSet r = null;
@@ -44,21 +49,37 @@ public class DatabaseHandler{
 		{
 			stmnt = db_conn.createStatement();
 			r = stmnt.executeQuery(query);
+			stmnt.close();
+			return r;
 		}
 		catch(SQLException e) {
 			System.out.println("Connection Failed!");
 			e.printStackTrace();
 		}
-		return r;
+		return null;
 	}
-	
+	public boolean isEmpty(ResultSet rs)
+	{
+		
+		try{
+			rs.beforeFirst();
+			if(rs.next())
+			{
+				return true;
+			}else
+				return false;
+		}catch(SQLException e){}
+		return false;
+	}
 	public int executeUpdate(String update)
 	{
 		Statement stmnt;
 		try
 		{
 			stmnt = db_conn.createStatement();
-			return stmnt.executeUpdate(update);
+			int ret_val = stmnt.executeUpdate(update);
+			stmnt.close();
+			return ret_val;
 		}
 		catch(SQLException e) {
 			System.out.println("Connection Failed!");

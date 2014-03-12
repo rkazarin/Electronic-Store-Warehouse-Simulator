@@ -25,6 +25,15 @@ public class ManagerHandler extends UserHandler {
 	
 	public void adjustCustomerStatus()
 	{
+		
+		StringBuilder myQuery0 = new StringBuilder();
+		myQuery0.append("UPDATE EMART_CUSTOMERS C1\n");
+		myQuery0.append("SET C1.STATUS =\'New\'\n");
+		myQuery0.append("WHERE C1.CUSTOMER_ID IN (\n");
+		myQuery0.append("SELECT CUS.CUSTOMER_ID AS CID\n");
+		myQuery0.append("FROM EMART_CUSTOMERS CUS\n");
+		myQuery0.append("WHERE CUS.CUSTOMER_ID NOT IN (SELECT O.CUSTOMER_ID AS CID FROM EMART_ORDERS O))");
+		
 		StringBuilder myQuery = new StringBuilder();
 		myQuery.append("UPDATE EMART_CUSTOMERS C1\n");
 		myQuery.append("SET C1.STATUS = \'Green\'\n");
@@ -61,10 +70,11 @@ public class ManagerHandler extends UserHandler {
 		myQuery2.append("WHERE C.CUSTOMER_ID = D.CID AND D.rn <= 3\n");
 		myQuery2.append("GROUP BY C.CUSTOMER_ID) x\n");
 		myQuery2.append("WHERE x.OCOST >= (SELECT E1.GOLD_MIN FROM EMART_CHECKOUT_INFO E1 WHERE E1.ID = 0))");
-		
+		int new_customers = myDB.executeUpdate(myQuery0.toString());
 		int upgrade_to_green = myDB.executeUpdate(myQuery.toString());
 		int upgrade_to_silver = myDB.executeUpdate(myQuery1.toString());
 		int upgrade_to_gold = myDB.executeUpdate(myQuery2.toString());
+		System.out.println("Number of Users who are now 'New' Status: "+Integer.toString(new_customers));
 		System.out.println("Number of Users who are now 'Green' Status: "+Integer.toString(upgrade_to_green));
 		System.out.println("Number of Users who are now 'Silver' Status: "+Integer.toString(upgrade_to_silver));
 		System.out.println("Number of Users who are now 'Gold' Status: "+Integer.toString(upgrade_to_gold));
@@ -81,22 +91,24 @@ public class ManagerHandler extends UserHandler {
 		String time2 = dateFormat.format(cal.getTime());
 
 		long lastMonthTime = cal.getTimeInMillis()/1000;
-		StringBuilder myQuery = new StringBuilder(250);
-		myQuery.append("SELECT DISTINCT A.STOCK_NUM STOCK_NUMBER, SUM(A.QUANTITY) TOTAL_QUANTITY, SUM(A.PRICE) TOTAL_PRICE ");
-		myQuery.append("FROM EMART_ORDER_HAS_ITEM A, EMART_ORDERS B");
-		myQuery.append(" WHERE A.ORDER_ID = B.ORDER_ID ");
+		StringBuilder myQuery = new StringBuilder();
+		//myQuery.append("SELECT F.STOCK_NUMBER AS STOCK_NUMBER, F.TOTAL_QUANTITY AS TOTAL_QUANTITY, F.TOTAL_QUANTITY*F.PRICE AS TOTAL_PRICE\n");
+		//myQuery.append("FROM ( ");
+		myQuery.append("SELECT DISTINCT A.STOCK_NUM STOCK_NUMBER, SUM(A.QUANTITY) AS TOTAL_QUANTITY, SUM(A.PRICE*A.QUANTITY) AS TOTAL_REVENUE ");
+		myQuery.append("FROM EMART_ORDER_HAS_ITEM A, EMART_ORDERS B \n");
+		myQuery.append("WHERE A.ORDER_ID = B.ORDER_ID ");
 		myQuery.append("AND B.ORDER_TIME > ");
 		myQuery.append(lastMonthTime);
 		myQuery.append(" GROUP BY A.STOCK_NUM ");
 		StringBuilder myQuery2 = new StringBuilder();
-		myQuery2.append("SELECT DISTINCT C.CATEGORY, SUM(I.QUANTITY), SUM(I.PRICE) ");
+		myQuery2.append("SELECT DISTINCT C.CATEGORY AS CATEGORY, SUM(I.QUANTITY) AS TOTAL_QUANTITY, SUM(I.PRICE*I.QUANTITY) TOTAL_REVENUE ");
 		myQuery2.append("FROM EMART_CATALOG C, EMART_ORDER_HAS_ITEM I, EMART_ORDERs D ");
 		myQuery2.append("WHERE D.ORDER_ID = I.ORDER_ID AND C.STOCK_NUM = I.STOCK_NUM AND D.ORDER_TIME > ");
 		myQuery2.append(lastMonthTime);
 		myQuery2.append('\n');
 		myQuery2.append("GROUP BY C.CATEGORY");
 		StringBuilder myQuery3 = new StringBuilder(150);
-		myQuery3.append("SELECT DISTINCT C.CUSTOMER_ID, C.NAME, SUM(D.ORDER_TOTAL)\n");
+		myQuery3.append("SELECT DISTINCT C.CUSTOMER_ID AS CUSTOMER_ID, C.NAME AS CUSTOMER_NAME, SUM(D.ORDER_TOTAL) AS AGGREGATE_ORDER_COST\n");
 		myQuery3.append("FROM EMART_CUSTOMERS C, EMART_ORDERS D \n");
 		myQuery3.append("WHERE D.CUSTOMER_ID = C.CUSTOMER_ID AND D.ORDER_TIME > ");
 		myQuery3.append(lastMonthTime);
@@ -134,6 +146,7 @@ public class ManagerHandler extends UserHandler {
 	public void deleteOldOrders()
 	{
 		StringBuilder myQuery = new StringBuilder();
+		StringBuilder myQuery1 = new StringBuilder();
 		myQuery.append("DELETE FROM EMART_ORDERS O1\n");
 		myQuery.append("WHERE O1.ORDER_ID IN (\n");
 		myQuery.append("SELECT x.OID\n");
@@ -142,8 +155,18 @@ public class ManagerHandler extends UserHandler {
 		myQuery.append("FROM EMART_ORDERS O2 \n");
 		myQuery.append("ORDER BY O2.CUSTOMER_ID, O2.ORDER_ID desc) D\n");
 		myQuery.append("WHERE C.CUSTOMER_ID = D.CID AND D.rn > 3) x)");
+		myQuery1.append("DELETE FROM EMART_ORDER_HAS_ITEM O1\n");
+		myQuery1.append("WHERE O1.ORDER_ID IN (\n");
+		myQuery1.append("SELECT x.OID\n");
+		myQuery1.append("FROM (SELECT D.OID AS OID\n");
+		myQuery1.append("FROM EMART_CUSTOMERS C,	(SELECT O2.ORDER_ID AS OID,O2.CUSTOMER_ID AS CID,O2.ORDER_TOTAL AS OT, row_number() over (partition by O2.CUSTOMER_ID order by O2.ORDER_ID desc) rn\n");
+		myQuery1.append("FROM EMART_ORDERS O2 \n");
+		myQuery1.append("ORDER BY O2.CUSTOMER_ID, O2.ORDER_ID desc) D\n");
+		myQuery1.append("WHERE C.CUSTOMER_ID = D.CID AND D.rn > 3) x)");
+		int numDeletedHasItem = myDB.executeUpdate(myQuery1.toString());
 		int numDeletedOrders = myDB.executeUpdate(myQuery.toString());
-		System.out.println("Number of Deleted ORDER Records : " + Integer.toString(numDeletedOrders));	
+		System.out.println("Number of Deleted EMART_ORDER Records : " + Integer.toString(numDeletedOrders));	
+		System.out.println("Number of Deleted ORDER_HAS_ITEM Records : " + Integer.toString(numDeletedHasItem));	
 	}
 	public void changeItemPrice()
 	{
@@ -157,19 +180,60 @@ public class ManagerHandler extends UserHandler {
 		{
 			Statement stmt = myDB.db_conn.createStatement();
 			StringBuilder myQuery = new StringBuilder(150);
-			myQuery.append("UPDATE emart_catalog");
-			myQuery.append(" SET price = " + new_price);
-			myQuery.append(" WHERE stock_num = " + "\'" + stock_num + "\'");
+			myQuery.append("UPDATE EMART_CATALOG C\n");
+			myQuery.append("SET C.PRICE = " + new_price +"\n");
+			myQuery.append("WHERE C.STOCK_NUM = " + "\'" + stock_num + "\'");
 			stmt.executeUpdate(myQuery.toString());
-			
 			System.out.println("Changed the price of " + stock_num + " to " + new_price);
-
 		}
 		catch(SQLException e)
 		{
 			e.printStackTrace();
 		}
 
+	}
+	
+	public void changeCustomerStatus()
+	{
+		Scanner scan = new Scanner(System.in);
+		System.out.print("Enter Customer ID : ");
+		String cust_id = scan.nextLine();
+		boolean incorrect_status = true;
+		boolean abort = false;
+		String new_status = null;
+		while(incorrect_status)
+		{
+			System.out.print("Enter Status ('New','Green','Silver', 'Gold'): ");
+			new_status = scan.nextLine();
+			switch(new_status){
+				case "Gold" :	incorrect_status = false; break;
+				case "New"	:   incorrect_status = false; break;
+				case "Silver": 	incorrect_status = false; break;
+				case "Green":	incorrect_status = false; break;
+				case "" :		incorrect_status = false; abort = true; break ;
+				default : System.out.println("Invalid Customer Status, try again.");
+							break;
+			}
+		}
+		if(!abort && new_status != null)
+			try
+			{
+				Statement stmt = myDB.db_conn.createStatement();
+				StringBuilder myQuery = new StringBuilder(150);
+				myQuery.append("UPDATE EMART_CUSTOMERS C\n");
+				myQuery.append(" SET C.STATUS = " + "\'"+new_status+"\'\n");
+				myQuery.append(" WHERE C.CUSTOMER_ID = " + "\'" + cust_id + "\'");
+				int newVal = stmt.executeUpdate(myQuery.toString());
+				if(newVal == 1)
+					System.out.println("Changed the status of " + cust_id + " to " + new_status);
+				else
+					System.out.println("No customer with that Customer ID");
+			}
+			catch(SQLException e)
+			{
+				e.printStackTrace();
+			}
+		
 	}
 	
 	public boolean checkManagerLogin()
@@ -452,10 +516,11 @@ public class ManagerHandler extends UserHandler {
 		}
 		else{
 			System.out.println("Type 'month' to view the monthly reports.");
-			System.out.println("Type 'update_status' to update the status of the customers.");
+			System.out.println("Type 'update status' to update the status of the customers.");
 			System.out.println("Type 'trim' to delete unnecessary ORDERs records.");
 			System.out.println("Type 'send order' to generate a shipping notice from a manufacturer.");
 			System.out.println("Type 'change price' to change the price of an item");
+			System.out.println("Type 'update customer status' to update the status of a specific customer to a specific status");
 			Scanner scan = new Scanner(System.in);
 			String s = scan.nextLine();
 			switch(s){
@@ -463,13 +528,16 @@ public class ManagerHandler extends UserHandler {
 											break;
 				case "send order"		:	sendOrder();
 											break;
-				case "update_status" 	: 	adjustCustomerStatus();
+				case "update status" 	: 	adjustCustomerStatus();
 											break;
 				case "trim"				:	deleteOldOrders();
 											break;
 				case "change price"		:	changeItemPrice();
 											break;
+				case "update customer status" 	: 	changeCustomerStatus();
+													break;
 				case "logout" 			: 	return false;
+											
 			}
 			return true;
 		}	

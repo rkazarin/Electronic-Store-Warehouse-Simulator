@@ -441,6 +441,7 @@ public class WarehouseHandler extends UserHandler {
 		try
 		{
 			String shippingNoticeId = makeNewUniqueStockNum();
+			System.out.println("The shipping notice id is: " + shippingNoticeId);
 			
 			Statement stmt = myDB.db_conn.createStatement();
 			StringBuilder myQuery = new StringBuilder(150);
@@ -576,13 +577,13 @@ public class WarehouseHandler extends UserHandler {
 				
 				if(!rs.next())
 				{
-					System.out.println("This stock num is new!");
+					//System.out.println("This stock num is new!");
 					rs.close();
 					break;
 				}
 				else
 				{
-					System.out.println("This stock num already exists");
+					//System.out.println("This stock num already exists");
 					rs.close();
 					continue;
 				}
