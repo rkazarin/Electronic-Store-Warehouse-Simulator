@@ -163,7 +163,7 @@ public class DatabaseHandler{
 				
 				if(conn_emart == true)
 				{
-					if(emartCounter != 8)
+					if(emartCounter != 7)
 					{
 						throw new CustomException("Incorrect table count");
 					}

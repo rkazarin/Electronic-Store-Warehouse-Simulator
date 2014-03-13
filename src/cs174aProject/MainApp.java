@@ -22,7 +22,7 @@ public class MainApp {
 			UserHandler myUser = null;
 			
 			//Ask user whether they are customer or manager
-			System.out.print("Enter 'c' for customer, 'm' for Manager, 'w' to access warehouse or 'q' to quit: ");
+			System.out.print("Enter 'c' for customer, 'm' for Manager, 'w' to access warehouse  or 'q' to quit: ");
 			Scanner scan = new Scanner(System.in);
 			String s = scan.nextLine();
 			

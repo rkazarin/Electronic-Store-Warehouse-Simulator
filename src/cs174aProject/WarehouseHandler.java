@@ -20,8 +20,7 @@ public class WarehouseHandler extends UserHandler {
 	public boolean processInput() {
 
 		System.out.println("Type 'check quantity' to check quantity of item. Type 'receive notice' to receive a shipping notice."
-				+ "Type 'receive shipment' to receive a shipment. Type 'fill order' to fill an order. Type 'logout' to exit system."
-				+ "Type 'practice' to run sample method");
+				+ "Type 'receive shipment' to receive a shipment. \n Type 'fill order' to fill an order. Type 'logout' to exit system.");
 		
 		Scanner scan = new Scanner(System.in);
 		String s = scan.nextLine();

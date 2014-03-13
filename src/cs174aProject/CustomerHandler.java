@@ -349,8 +349,8 @@ public class CustomerHandler extends UserHandler {
 				
 			}
 			
-			System.out.println(myQuery.toString());
-			System.out.println(accessoryQuery.toString());
+			//System.out.println(myQuery.toString());
+			//System.out.println(accessoryQuery.toString());
 			StringBuilder finalSearchQuery = new StringBuilder();
 			
 			if(searchQuery.isEmpty() && searchByAccessory == true)
@@ -372,7 +372,7 @@ public class CustomerHandler extends UserHandler {
 				finalSearchQuery = myQuery;
 			}
 	
-			System.out.println(finalSearchQuery.toString());
+			//System.out.println(finalSearchQuery.toString());
 			
 			ResultSet rs = stmt.executeQuery(finalSearchQuery.toString());
 			//ResultSetMetaData rsmd = rs.getMetaData();

@@ -121,7 +121,7 @@ public class ManagerHandler extends UserHandler {
 			Statement stmnt1 = myDB.db_conn.createStatement();
 			Statement stmnt2 = myDB.db_conn.createStatement();
 			Statement stmnt3 = myDB.db_conn.createStatement();
-			System.out.println(myQuery3.toString());
+			//System.out.println(myQuery3.toString());
 			ResultSet rs1 = stmnt1.executeQuery(myQuery.toString());
 			ResultSet rs2 = stmnt2.executeQuery(myQuery2.toString());
 			ResultSet rs3 = stmnt3.executeQuery(myQuery3.toString());
